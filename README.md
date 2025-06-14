@@ -26,8 +26,8 @@ Cria a variável de ambiente para a chave de API no sistema operacional
 Útil para tratar de expressões regulares. No código, é usado para tirar a marcação de bloco que a IA manda junto com a query (o `'''sql ..... '''`).
 ### Como instalar
 Para instalar as dependências, basta rodar o seguinte comando no terminal:
-    pip install streamlit pandas sqlalchemy mysql-connector-python psycopg2-binary langchain langchain-google-genai sqlparse
+    `pip install streamlit pandas sqlalchemy mysql-connector-python psycopg2-binary langchain langchain-google-genai sqlparse`
 
 ## Como rodar o código
 Apenas utilize o seguinte comando: 
-    streamlit run nome_do_script.py
+    `streamlit run nome_do_script.py`
