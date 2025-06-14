@@ -3,11 +3,12 @@ import streamlit as st
 import pandas as pd  # Importamos o pandas para facilitar a exibição dos resultados
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.pool import NullPool
+import sqlparse
 
 # Importações do LangChain (não serão usadas no teste direto, mas permanecem para a função principal)
 from langchain.sql_database import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
-from langchain_mistralai import ChatMistralAI
+#from langchain_mistralai import ChatMistralAI
 
 # --- Configuração da Página do Streamlit ---
 st.set_page_config(page_title="Consulta DB com Agente SQL", layout="wide")
@@ -26,14 +27,10 @@ with st.sidebar:
     db_password = st.text_input("Senha", type="password")
     db_name = st.text_input("Nome do Banco de Dados", "seu_banco_de_dados")
 
-    st.subheader("2. Inteligência Artificial")
-    mistral_api_key = st.text_input("Sua Chave de API da Mistral AI", type="password")
-
     connect_button = st.button("Conectar e Analisar Esquema")
 
 
 # --- Funções do Backend ---
-@st.cache_resource(ttl=3600)
 def get_db_engine(_db_type, _user, _password, _host, _port, _dbname):
     """Cria o 'engine' de conexão com o banco de dados usando SQLAlchemy."""
     if _db_type == 'mysql':
@@ -56,40 +53,40 @@ if connect_button:
                 engine = get_db_engine(db_type, db_user, db_password, db_host, db_port, db_name)
                 st.session_state['db_engine'] = engine
     
-            st.success(f"Conexão com {db_type} estabelecida com sucesso!")
+                inspector = inspect(engine)
+                
+                schema_info_string = f"**Analisando o banco de dados/esquema:** `{db_name}`\n"
+                
+                table_names = inspector.get_table_names()
 
-            inspector = inspect(engine)
-            schemas = inspector.get_schema_names()
-            
-            # Lista de esquemas de sistema a serem ignorados
-            system_schemas_to_ignore = ['information_schema', 'performance_schema', 'sys', 'mysql']
+                if not table_names:
+                     st.warning(f"Nenhuma tabela encontrada no banco de dados '{db_name}'. Verifique as permissões do usuário ou se o banco contém tabelas.")
+                
+                for table_name in table_names:
+                    schema_info_string += f"  - **Tabela:** `{table_name}`\n"
+                    columns = inspector.get_columns(table_name)
+                    for column in columns:
+                        schema_info_string += f"    - Campo: `{column['name']}` (Tipo: `{column['type']}`)\n"
+                
+                st.session_state['schema_info'] = schema_info_string
 
-            with st.expander("Ver Esquema do Banco de Dados"):
-                for schema in schemas:
-                    # Adicionamos um filtro para ignorar os esquemas internos do sistema
-                    if not schema.startswith('pg_') and schema not in system_schemas_to_ignore:
-                        st.write(f"**Esquema:** `{schema}`")
-                        for table_name in inspector.get_table_names(schema=schema):
-                            st.write(f"  - **Tabela:** `{table_name}`")
-                            columns = inspector.get_columns(table_name, schema=schema)
-                            for column in columns:
-                                st.write(f"    - Campo: `{column['name']}` (Tipo: `{column['type']}`)")
+                st.success(f"Conexão com {db_type} estabelecida com sucesso!")
+
         except Exception as e:
-            st.error(f"Erro ao conectar ou analisar o banco de dados: {e}")
+            st.error(f"Ocorreu um erro detalhado ao conectar ou analisar o banco de dados: {e}")
 
 if 'db_engine' in st.session_state:
-    st.subheader("⚡ Funcionalidade Principal (Com IA)")
-    st.write("Faça sua pergunta em linguagem natural abaixo.")
+    st.subheader("Esquema do Banco de Dados Conectado:")
+    schema_display = st.session_state.get('schema_info', "")
+    if schema_display:
+        with st.expander("Clique para ver/ocultar o esquema", expanded=True):
+            st.markdown(schema_display)
+    else:
+        st.info("O esquema do banco de dados está vazio ou não pôde ser carregado.")
     
-    natural_language_query = st.text_area("Digite sua consulta em linguagem natural aqui:", height=100, key="ia_query")
-
-    if st.button("Executar Consulta com IA"):
-        # ... (código do agente de IA permanece aqui) ...
-        pass # Adicionado para evitar erro de sintaxe no exemplo
-    
-    # --- Seção de Teste Direto de SQL ---
     st.divider()
-    st.subheader("🧪 Teste Direto de Query SQL (Sem IA)")
+    # --- Seção de Teste Direto de SQL ---
+    st.subheader("🧪 Teste Direto de Query SQL")
     st.write("Use esta seção para verificar sua conexão e executar comandos SQL manualmente.")
     
     manual_sql_query = st.text_area("Digite sua query SQL aqui:", height=100, key="manual_query")
@@ -102,12 +99,19 @@ if 'db_engine' in st.session_state:
                 with st.spinner("Executando query SQL..."):
                     engine = st.session_state['db_engine']
                     # Usamos o pandas para ler o resultado do SQL diretamente em um DataFrame
-                    df = pd.read_sql(manual_sql_query, engine)
-                
-                st.success("Query executada com sucesso!")
-                st.write("Resultado:")
-                # O Streamlit exibe DataFrames de forma interativa e elegante
-                st.dataframe(df)
+                                # Validação de Segurança e Execução
 
+                st.subheader("Resultado da Consulta:")
+                parsed_list = sqlparse.parse(manual_sql_query)
+                
+                if len(parsed_list) > 1 or (not parsed_list) or (parsed_list[0].get_type() != 'SELECT'):
+                    st.error(f"❌ Ação Bloqueada! A IA gerou um comando que não é uma consulta de leitura (SELECT) única e segura.")
+                else:
+                    with st.spinner("🔄 Executando a consulta segura no banco de dados..."):
+                        df = pd.read_sql(manual_sql_query, engine)
+                        st.success("Query executada com sucesso!")
+                        st.write("Resultado:")
+                        st.dataframe(df)
+            
             except Exception as e:
                 st.error(f"Ocorreu um erro ao executar a query SQL: {e}")

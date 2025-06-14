@@ -1,87 +1,162 @@
 import os
 import streamlit as st
+import pandas as pd
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.pool import NullPool
+import sqlparse
+import re
+
+# Importações do LangChain
+from langchain_core.prompts import ChatPromptTemplate
 from langchain.sql_database import SQLDatabase
-from langchain_community.agent_toolkits import create_sql_agent
-from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chains import create_sql_query_chain
 
-# ... (todo o código inicial permanece o mesmo) ...
+# --- Configuração da Página do Streamlit ---
+st.set_page_config(page_title="Natural Language to SQL", layout="wide")
+st.title("🗣️ Linguagem Natural para SQL (Interface Segura e Dinâmica)")
+st.write("Forneça as configurações, conecte-se ao banco, e faça perguntas para gerar e executar consultas SQL.")
 
-st.set_page_config(page_title="Consulta DB com Linguagem Natural", layout="wide")
-st.title("🤖 Consulta a Banco de Dados com Agente SQL")
-st.sidebar.header("Configuração do Banco de Dados")
-db_type = st.sidebar.selectbox("Tipo de Banco", ["postgresql", "mysql"])
-db_host = st.sidebar.text_input("Host", "localhost")
-db_port = st.sidebar.text_input("Porta", "5432" if db_type == "postgresql" else "3306")
-db_user = st.sidebar.text_input("Usuário", "seu_usuario")
-db_password = st.sidebar.text_input("Senha", type="password")
-db_name = st.sidebar.text_input("Nome do Banco de Dados", "seu_banco_de_dados")
-st.sidebar.header("Configuração da Mistral AI")
-mistral_api_key = st.sidebar.text_input("Sua Chave de API da Mistral", type="password")
+# --- Interface na Barra Lateral para Configurações ---
+with st.sidebar:
+    st.header("⚙️ Configurações da Sessão")
+    st.subheader("1. Banco de Dados")
+    db_type = st.selectbox("Tipo de Banco", ["mysql", "postgresql"])
+    db_host = st.text_input("Host", "localhost")
+    db_port = st.text_input("Porta", "3306" if db_type == "mysql" else "5432")
+    db_user = st.text_input("Usuário", placeholder="ex: seu_usuario")
+    db_password = st.text_input("Senha", type="password")
+    db_name = st.text_input("Nome do Banco de Dados", placeholder="ex: meu_banco")
+    st.subheader("2. Inteligência Artificial")
+    google_api_key = st.text_input("Sua Chave de API do Google AI", type="password")
+    connect_button = st.button("Conectar e Analisar Esquema")
 
 
-@st.cache_resource(ttl=3600)
+# --- Funções do Backend ---
 def get_db_engine(_db_type, _user, _password, _host, _port, _dbname):
+    """Cria o 'engine' de conexão com o banco de dados."""
     if _db_type == 'mysql':
         connection_string = f"mysql+mysqlconnector://{_user}:{_password}@{_host}:{_port}/{_dbname}"
+        engine = create_engine(connection_string, poolclass=NullPool)
     elif _db_type == 'postgresql':
         connection_string = f"postgresql+psycopg2://{_user}:{_password}@{_host}:{_port}/{_dbname}"
+        engine = create_engine(connection_string)
     else:
         raise ValueError("Tipo de banco de dados não suportado.")
-    engine = create_engine(connection_string)
     return engine
 
-# Corpo Principal da Aplicação
-
-if st.sidebar.button("Conectar e Analisar Esquema"):
+# --- Lógica de Conexão e Análise de Esquema ---
+if connect_button:
+    if 'schema_info' in st.session_state:
+        del st.session_state['schema_info']
+    if 'db_engine' in st.session_state:
+        del st.session_state['db_engine']
+    
     if not all([db_host, db_port, db_user, db_password, db_name]):
-        st.warning("Por favor, preencha todas as credenciais do banco de dados.")
+        st.warning("Por favor, preencha todas as credenciais do banco de dados na barra lateral.")
     else:
         try:
-            engine = get_db_engine(db_type, db_user, db_password, db_host, db_port, db_name)
-            st.session_state['db_engine'] = engine
+            with st.spinner("Conectando ao banco de dados e analisando o esquema..."):
+                engine = get_db_engine(db_type, db_user, db_password, db_host, db_port, db_name)
+                st.session_state['db_engine'] = engine
+
+                inspector = inspect(engine)
+                
+                schema_info_string = f"**Analisando o banco de dados/esquema:** `{db_name}`\n"
+                
+                table_names = inspector.get_table_names()
+
+                if not table_names:
+                     st.warning(f"Nenhuma tabela encontrada no banco de dados '{db_name}'. Verifique as permissões do usuário ou se o banco contém tabelas.")
+                
+                for table_name in table_names:
+                    schema_info_string += f"  - **Tabela:** `{table_name}`\n"
+                    columns = inspector.get_columns(table_name)
+                    for column in columns:
+                        schema_info_string += f"    - Campo: `{column['name']}` (Tipo: `{column['type']}`)\n"
+                
+                st.session_state['schema_info'] = schema_info_string
+
             st.success(f"Conexão com {db_type} estabelecida com sucesso!")
             
-            inspector = inspect(engine)
-            schemas = inspector.get_schema_names()
-            
-            with st.expander("Ver Esquema do Banco de Dados"):
-                for schema in schemas:
-                     if not schema.startswith('pg_') and schema != 'information_schema':
-                        st.write(f"**Esquema:** `{schema}`")
-                        for table_name in inspector.get_table_names(schema=schema):
-                            st.write(f"  - **Tabela:** `{table_name}`")
-                            columns = inspector.get_columns(table_name, schema=schema)
-                            for column in columns:
-                                st.write(f"    - Campo: `{column['name']}` (Tipo: `{column['type']}`)")
         except Exception as e:
-            st.error(f"Erro ao conectar ou analisar o banco de dados: {e}")
+            st.error(f"Ocorreu um erro detalhado ao conectar ou analisar o banco de dados: {e}")
 
+# --- Lógica Principal da Interface --
 if 'db_engine' in st.session_state:
-    st.header("Faça sua pergunta")
-    natural_language_query = st.text_area("Digite sua pergunta em linguagem natural aqui:")
-    if st.button("Executar Consulta"):
-        if not mistral_api_key:
-            st.warning("Por favor, insira sua chave da API da Mistral na barra lateral.")
+    st.subheader("Esquema do Banco de Dados Conectado:")
+    schema_display = st.session_state.get('schema_info', "")
+    if schema_display:
+        with st.expander("Clique para ver/ocultar o esquema", expanded=True):
+            st.markdown(schema_display)
+    else:
+        st.info("O esquema do banco de dados está vazio ou não pôde ser carregado.")
+    
+    st.divider()
+
+    st.subheader("Faça sua pergunta")
+    natural_language_query = st.text_area("Digite sua consulta em linguagem natural aqui:", height=100, key="ia_query")
+
+    if st.button("Gerar e Executar SQL"):
+        if not google_api_key:
+            st.warning("Por favor, insira sua chave da API do Google AI.")
         elif not natural_language_query:
             st.warning("Por favor, digite uma pergunta.")
         else:
             try:
-                os.environ["MISTRAL_API_KEY"] = mistral_api_key
+                os.environ["GOOGLE_API_KEY"] = google_api_key
                 engine = st.session_state['db_engine']
                 db = SQLDatabase(engine=engine)
-                llm = ChatMistralAI(model="mistral-large-latest", temperature=0)
+                llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0)
 
-                # --- MUDANÇA APLICADA AQUI ---
-                # Removemos o parâmetro agent_type="openai-tools" para usar
-                # um agente mais genérico e compatível com a Mistral.
-                agent_executor = create_sql_agent(llm, db=db, verbose=True)
+                prompt = ChatPromptTemplate.from_template(
+                    """Sua única tarefa é receber uma pergunta e o esquema de um banco de dados e gerar uma única e sintaticamente correta consulta SQL de leitura (SELECT).
+                    Dialeto SQL a ser usado: {dialect}.
+                    
+                    Regras Importantes:
+                    - NUNCA gere comandos DML (INSERT, UPDATE, DELETE) ou DDL (CREATE, ALTER, DROP).
+                    - A menos que o usuário peça um número específico de resultados, você pode usar o valor sugerido de {top_k} para limitar os resultados. Se o usuário pedir "todos", não adicione um LIMIT.
+                    - Atente-se aos alias de tabelas e colunas que podem ser usados pelo usuário, se necessário.
+                    - Sempre use nomes de colunas e tabelas exatamente como estão no esquema.
+                    - Sua saída deve ser APENAS o código SQL puro, sem nenhuma formatação Markdown como ```sql, explicações ou qualquer outro texto.
 
-                with st.spinner("Agente SQL pensando e executando a consulta..."):
-                    response = agent_executor.invoke({"input": natural_language_query})
-                    result = response.get("output", "Não foi possível obter uma resposta.")
+                    Esquema do banco:
+                    {table_info}
+                    
+                    Pergunta do usuário:
+                    {input}
+                    
+                    SQL Query:"""
 
-                st.subheader("Resultado da Consulta")
-                st.markdown(result)
+                )
+                
+                with st.spinner("🤖 IA está traduzindo sua pergunta para SQL..."):
+                    # A cadeia agora recebe um prompt com as variáveis corretas.
+                    query_chain = create_sql_query_chain(llm, db, prompt=prompt)
+                    generated_sql = query_chain.invoke({"question": natural_language_query}).strip()
+
+                    # Limpeza da saída da IA para remover formatação Markdown
+                    match = re.search(r"```sql\n(.*)\n```", generated_sql, re.DOTALL)
+                    if match:
+                        generated_sql = match.group(1).strip()
+                    else:
+                        generated_sql = generated_sql.strip('`').strip()
+
+                
+                st.subheader("Query SQL Gerada:")
+                st.code(generated_sql, language='sql')
+
+                # Validação de Segurança e Execução
+                st.subheader("Resultado da Consulta:")
+                parsed_list = sqlparse.parse(generated_sql)
+                
+                if len(parsed_list) > 1 or (not parsed_list) or (parsed_list[0].get_type() != 'SELECT'):
+                    st.error(f"❌ Ação Bloqueada! A IA gerou um comando que não é uma consulta de leitura (SELECT) única e segura.")
+                else:
+                    with st.spinner("🔄 Executando a consulta segura no banco de dados..."):
+                        df = pd.read_sql(generated_sql, engine)
+                        st.dataframe(df)
+
             except Exception as e:
-                st.error(f"Ocorreu um erro ao processar sua consulta: {e}")
+                st.error(f"Ocorreu um erro durante o processo: {e}")
+
