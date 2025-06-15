@@ -98,6 +98,12 @@ if 'db_engine' in st.session_state:
     natural_language_query = st.text_area("Digite sua consulta em linguagem natural aqui:", height=100, key="ia_query")
 
     if st.button("Gerar e Executar SQL"):
+
+        if 'generated_sql' in st.session_state:
+            del st.session_state.generated_sql
+        if 'result_df' in st.session_state:
+            del st.session_state.result_df
+        
         if not google_api_key:
             st.warning("Por favor, insira sua chave da API do Google AI.")
         elif not natural_language_query:
@@ -114,7 +120,7 @@ if 'db_engine' in st.session_state:
                     Dialeto SQL a ser usado: {dialect}.
                     
                     Regras Importantes:
-                    - NUNCA gere comandos DML (INSERT, UPDATE, DELETE) ou DDL (CREATE, ALTER, DROP).
+                    - NUNCA gere comandos DML (INSERT, UPDATE, DELETE) ou DDL (CREATE, ALTER, DROP). **SE** a pergunta do usuário pedir para modificar o banco de dados (usando palavras como CRIAR, INSERIR, ALTERAR, APAGAR, ATUALIZAR, DROP, INSERT, UPDATE, DELETE, CREATE, ALTER), você **NÃO DEVE** gerar SQL. Em vez disso, sua resposta final e direta para o usuário deve ser uma frase educada em português explicando que você não tem permissão para realizar esse tipo de operação, como por exemplo: "Desculpe, minhas permissões são apenas para leitura e não posso alterar o banco de dados."
                     - A menos que o usuário peça um número específico de resultados, você pode usar o valor sugerido de {top_k} para limitar os resultados. Se o usuário pedir "todos", não adicione um LIMIT.
                     - Atente-se aos alias de tabelas e colunas que podem ser usados pelo usuário, se necessário.
                     - Sempre use nomes de colunas e tabelas exatamente como estão no esquema.
@@ -142,21 +148,29 @@ if 'db_engine' in st.session_state:
                     else:
                         generated_sql = generated_sql.strip('`').strip()
 
-                
-                st.subheader("Query SQL Gerada:")
-                st.code(generated_sql, language='sql')
+                st.session_state.generated_sql = generated_sql
 
-                # Validação de Segurança e Execução
-                st.subheader("Resultado da Consulta:")
+                # Validação e Execução
                 parsed_list = sqlparse.parse(generated_sql)
-                
-                if len(parsed_list) > 1 or (not parsed_list) or (parsed_list[0].get_type() != 'SELECT'):
-                    st.error(f"❌ Ação Bloqueada! A IA gerou um comando que não é uma consulta de leitura (SELECT) única e segura.")
+                non_empty_statements = [stmt for stmt in parsed_list if stmt.tokens and str(stmt).strip()]
+
+                if len(non_empty_statements) != 1 or non_empty_statements[0].get_type() != 'SELECT':
+                    st.error(f"❌ Ação Bloqueada! A IA gerou um comando inválido.")
+                    # Limpa o SQL inválido do estado
+                    del st.session_state.generated_sql 
                 else:
                     with st.spinner("🔄 Executando a consulta segura no banco de dados..."):
                         df = pd.read_sql(generated_sql, engine)
-                        st.dataframe(df)
+
+                        st.session_state.result_df = df
 
             except Exception as e:
                 st.error(f"Ocorreu um erro durante o processo: {e}")
 
+    if 'generated_sql' in st.session_state:
+        st.subheader("Query SQL Gerada:")
+        st.code(st.session_state.generated_sql, language='sql')
+
+    if 'result_df' in st.session_state:
+        st.subheader("Resultado da Consulta:")
+        st.dataframe(st.session_state.result_df)
