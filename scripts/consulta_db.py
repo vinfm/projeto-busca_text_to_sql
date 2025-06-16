@@ -29,7 +29,7 @@ from langchain.chains import create_sql_query_chain
 # Configuração da Página do Streamlit
 st.set_page_config(page_title="Text-To-SQL", layout="wide")
 st.title("🗣️ Linguagem Natural para SQL")
-st.write("De linguagem Natural para SQL: Conecte-se ao seu banco de dados e faça perguntas em português!")
+st.write("De linguagem Natural para SQL: Conecte-se ao seu banco de dados e faça perguntas em linguagem natural!")
 
 # Interface na Barra Lateral para Configurações
 with st.sidebar:
@@ -170,7 +170,7 @@ if 'db_engine' in st.session_state:
                 )
                 
                 # Spinner para indicar que a IA está processando
-                with st.spinner("🤖 IA está traduzindo sua pergunta para SQL..."):
+                with st.spinner("Traduzindo sua pergunta para SQL..."):
 
                     # Cria o chain de consulta SQL com o modelo de IA e o esquema do banco de dados, junto com o prompt
                     query_chain = create_sql_query_chain(llm, db, prompt=prompt)
@@ -195,12 +195,12 @@ if 'db_engine' in st.session_state:
 
                 # Verifica se a consulta gerada é válida e se é um comando SELECT
                 if len(non_empty_statements) != 1 or non_empty_statements[0].get_type() != 'SELECT':
-                    st.error(f"❌ Ação Bloqueada! A IA gerou um comando inválido.")
+                    st.error(f"❌ Ação Bloqueada! Comando inválido.")
                     # Limpa o SQL inválido do estado
                     del st.session_state.generated_sql 
                 else:
                     # Guarda o resultado da consulta SQL no estado da sessão
-                    with st.spinner("🔄 Executando a consulta segura no banco de dados..."):
+                    with st.spinner("🔄 Executando a consulta no banco de dados..."):
                         df = pd.read_sql(generated_sql, engine)
 
                         st.session_state.result_df = df
