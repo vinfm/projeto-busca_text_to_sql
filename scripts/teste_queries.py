@@ -8,7 +8,6 @@ import sqlparse
 # Importações do LangChain (não serão usadas no teste direto, mas permanecem para a função principal)
 from langchain.sql_database import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
-#from langchain_mistralai import ChatMistralAI
 
 # --- Configuração da Página do Streamlit ---
 st.set_page_config(page_title="Consulta DB com Agente SQL", layout="wide")

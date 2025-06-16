@@ -22,7 +22,7 @@ import re
 
 # Importações do LangChain
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.sql_database import SQLDatabase
+from langchain_community.utilities import SQLDatabase
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains import create_sql_query_chain
 
