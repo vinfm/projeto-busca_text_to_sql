@@ -1,9 +1,23 @@
+# Projeto: Text-To-SQL com Streamlit e LangChain
+# Para rodar o projeto, use o seguinte comando: streamlit run consulta_db.py
+
+# Comunicação com o Sistema Operacional -- usa ele na hora de definir a chave da API do Google AI como variável de ambiente
 import os
+
+# Responsável pela interface do programa S
 import streamlit as st
+
+# Importações para manipulação de dados
 import pandas as pd
+
+# Importações para conexão com o banco de dados
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.pool import NullPool
+
+# Importações para análise e formatação de consultas SQL
 import sqlparse
+
+# Importações para manipulação de expressões regulares
 import re
 
 # Importações do LangChain
