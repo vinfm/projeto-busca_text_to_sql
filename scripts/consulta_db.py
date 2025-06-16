@@ -154,7 +154,7 @@ if 'db_engine' in st.session_state:
                     
                     Regras Importantes:
                     - NUNCA gere comandos DML (INSERT, UPDATE, DELETE) ou DDL (CREATE, ALTER, DROP). **SE** a pergunta do usuário pedir para modificar o banco de dados (usando palavras como CRIAR, INSERIR, ALTERAR, APAGAR, ATUALIZAR, DROP, INSERT, UPDATE, DELETE, CREATE, ALTER), você **NÃO DEVE** gerar SQL. Em vez disso, sua resposta final e direta para o usuário deve ser uma frase educada em português explicando que você não tem permissão para realizar esse tipo de operação, como por exemplo: "Desculpe, minhas permissões são apenas para leitura e não posso alterar o banco de dados."
-                    - A menos que o usuário peça um número específico de resultados, você pode usar o valor sugerido de {top_k} para limitar os resultados. Se o usuário pedir "todos", não adicione um LIMIT.
+                    - A menos que o usuário peça um número específico de resultados, você pode usar o valor sugerido de {top_k} para limitar os resultados. Porém se o usuário pedir todos, não adicione um LIMIT.
                     - Atente-se aos alias de tabelas e colunas que podem ser usados pelo usuário, se necessário.
                     - Sempre use nomes de colunas e tabelas exatamente como estão no esquema.
                     - Sua saída deve ser APENAS o código SQL puro, sem nenhuma formatação Markdown como ```sql, explicações ou qualquer outro texto.
@@ -199,7 +199,7 @@ if 'db_engine' in st.session_state:
                     # Limpa o SQL inválido do estado
                     del st.session_state.generated_sql 
                 else:
-                    # Exibe a consulta SQL gerada
+                    # Guarda o resultado da consulta SQL no estado da sessão
                     with st.spinner("🔄 Executando a consulta segura no banco de dados..."):
                         df = pd.read_sql(generated_sql, engine)
 
