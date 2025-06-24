@@ -51,13 +51,20 @@ Esta seção detalha as bibliotecas que dão vida ao projeto.
 * **re:** Biblioteca de expressões regulares, utilizada aqui para limpar a formatação da query SQL gerada pela IA (remove o markdown `'''sql ... '''`).
 
 ### Instalação
+Para o código, foi utilizado a versão 3.11 do Python. A seguir temos os passos para instalar as dependências do projeto.
 
-Para instalar todas as dependências de uma vez, abra seu terminal e execute o seguinte comando:
+Para criar o ambiente virtual, ativá-lo e  instalar todas as dependências de uma vez, abra seu terminal no diretório "scripts" e execute o seguinte comando:
 
 ```bash
-pip install streamlit pandas sqlalchemy mysql-connector-python psycopg2-binary langchain langchain-google-genai sqlparse
+### Criação do ambiente virtual
+python -m venv venv 
+
+### Ativação venv em Linux
+source venv/bin/activate
+
+### Instalação das dependências 
+pip install -r requirements.txt
 
 ### Executar a aplicação Streamlit
-
 ```bash
 streamlit run consulta_db.py
