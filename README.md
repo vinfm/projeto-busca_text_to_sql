@@ -66,10 +66,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Execuçãp
+### Execução
 Para executar o script, com o ambiente virtual ativado e no diretório "scripts", rode o seguinte comando no terminal:
 ```bash
 streamlit run consulta_db.py
 ```
+Logo após isso, a aplicação será iniciada como uma página HTML, que abrirá no navegador. Nas abas laterais, faça a configuração do seu banco de dados, adicionando o nome de usuário, senha, a database e selecione o SGBD (MySQL ou PostgreSQL). Após clicar no botão "Conectar e Analisar Esquema", será feita a conexão com o banco de dados e mostrará a lista de tabelas e campos na parte principal da página.
+
+Para utilizar a ferramenta de Text to SQL, será necessário adquirir uma chave de API do Google, no site do Google AI Studio. Acessando a página, basta fazer login ou se registrar, clicar em adquirir uma chave de API, criar ela (se necessário) e utilizá-la, a colocando na aba lateral. Após isso, você apenas precisa fazer sua pergunta na parte principal da página e clicar em "Gerar e Executar SQL". Após isso, será mostrado a query em SQL criada e o resultado gerado. 
 
 Para finalizar a execução, basta usar Ctrl+C no terminal.
+
+### Avisos
+Ações que envolvem modificação da estrutura da database ou a modificação das tuplas do banco estão bloqueadas.
