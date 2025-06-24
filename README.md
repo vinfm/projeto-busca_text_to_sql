@@ -64,7 +64,12 @@ source venv/bin/activate
 
 ### Instalação das dependências 
 pip install -r requirements.txt
+```
 
-### Executar a aplicação Streamlit
+### Execuçãp
+Para executar o script, com o ambiente virtual ativado e no diretório "scripts", rode o seguinte comando no terminal:
 ```bash
 streamlit run consulta_db.py
+```
+
+Para finalizar a execução, basta usar Ctrl+C no terminal.
