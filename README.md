@@ -4,7 +4,7 @@ Este projeto apresenta uma ferramenta poderosa e intuitiva que traduz linguagem 
 
 A interface, construída com Streamlit, oferece uma experiência de usuário simples e direta: você se conecta ao banco de dados, faz uma pergunta, e a ferramenta gera a consulta SQL correspondente, exibindo os resultados em uma tabela.
 
-O projeto foi realizado pelos alunos Gustavo Padovam Ferreira Vinícius Ferreira Matias.
+O projeto foi realizado pelos alunos Gustavo Padovam Ferreira e Vinícius Ferreira Matias.
 
 ---
 
